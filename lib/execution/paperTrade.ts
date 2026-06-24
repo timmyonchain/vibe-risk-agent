@@ -147,3 +147,51 @@ export async function executeTrade(
   }
   return data as PaperTrade;
 }
+
+// ─────────────────────────────────────────────────────────────
+// Closing helpers (used by the Phase 5 risk monitor).
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * closeTrade — mark an open trade as closed and record its outcome.
+ * Also updates balance_after / balance_change on the row so the trade log
+ * (which judges inspect) reflects the realized result, not the open-time state.
+ */
+export async function closeTrade(
+  tradeId: string,
+  fields: { closePrice: number; pnl: number; balanceAfter: number; closedAt?: string },
+): Promise<PaperTrade> {
+  const { data, error } = await getClient()
+    .from("paper_trades")
+    .update({
+      status: "closed",
+      closed_at: fields.closedAt ?? new Date().toISOString(),
+      close_price: fields.closePrice,
+      pnl: fields.pnl,
+      balance_after: fields.balanceAfter,
+      balance_change: fields.pnl,
+    })
+    .eq("id", tradeId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to close trade ${tradeId}: ${error.message}`);
+  }
+  return data as PaperTrade;
+}
+
+/** updateAccountBalance — set the virtual balance (id = 1) to a new value. */
+export async function updateAccountBalance(newBalance: number): Promise<PaperAccount> {
+  const { data, error } = await getClient()
+    .from("paper_account")
+    .update({ balance: newBalance, updated_at: new Date().toISOString() })
+    .eq("id", 1)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to update account balance: ${error.message}`);
+  }
+  return data as PaperAccount;
+}
