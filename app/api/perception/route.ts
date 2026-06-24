@@ -31,13 +31,12 @@ export async function GET() {
         : "unknown";
 
     // Funding sentiment: are traders crowded one way?
-    // NOTE: thresholds are as specified (0.01). Bitget returns funding as a
-    // decimal (e.g. 0.0001 = 0.01%), so this will read "neutral" unless funding
-    // is extreme. Easy to retune later if you want it more sensitive.
+    // Thresholds tuned to real-world funding magnitudes (decimal form):
+    // 0.0005 = 0.05%. Above => longs paying (crowded long), below => shorts paying.
     const fundingSentiment =
-      ticker.fundingRate > 0.01
+      ticker.fundingRate > 0.0005
         ? "crowded long"
-        : ticker.fundingRate < -0.01
+        : ticker.fundingRate < -0.0005
           ? "crowded short"
           : "neutral";
 
