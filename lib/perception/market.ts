@@ -12,6 +12,29 @@ const TICKER_URL =
 const CANDLES_URL =
   `${BASE}/candles?symbol=BTCUSDT&granularity=15m&limit=100&productType=usdt-futures`;
 
+// Abort outbound Bitget requests that take longer than this, so a slow
+// upstream can never hang the API route (and the dashboard's polling).
+const FETCH_TIMEOUT_MS = 8000;
+
+async function fetchJson(url: string, label: string) {
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+  } catch (err) {
+    if (err instanceof Error && err.name === "TimeoutError") {
+      throw new Error(`Bitget ${label} timed out after ${FETCH_TIMEOUT_MS}ms`);
+    }
+    throw new Error(`Bitget ${label} request failed: ${(err as Error).message}`);
+  }
+  if (!res.ok) {
+    throw new Error(`Bitget ${label} request failed: HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
 export interface Ticker {
   lastPr: number; // current/last traded price
   fundingRate: number; // perpetual funding rate (decimal, e.g. 0.0001 = 0.01%)
@@ -24,12 +47,7 @@ export interface Ticker {
  * Bitget returns numbers as strings, so we convert to real numbers here.
  */
 export async function getTicker(): Promise<Ticker> {
-  const res = await fetch(TICKER_URL, { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error(`Bitget ticker request failed: HTTP ${res.status}`);
-  }
-
-  const json = await res.json();
+  const json = await fetchJson(TICKER_URL, "ticker");
   // Bitget wraps results: { code: "00000", msg: "success", data: [ {...} ] }
   if (json.code !== "00000" || !json.data?.[0]) {
     throw new Error(`Bitget ticker error: ${json.msg ?? "unexpected response"}`);
@@ -53,12 +71,7 @@ export async function getTicker(): Promise<Ticker> {
  * and return just the close (index 4) as a plain number array.
  */
 export async function getCandles(): Promise<number[]> {
-  const res = await fetch(CANDLES_URL, { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error(`Bitget candles request failed: HTTP ${res.status}`);
-  }
-
-  const json = await res.json();
+  const json = await fetchJson(CANDLES_URL, "candles");
   if (json.code !== "00000" || !Array.isArray(json.data)) {
     throw new Error(`Bitget candles error: ${json.msg ?? "unexpected response"}`);
   }
