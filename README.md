@@ -33,7 +33,7 @@ Every trading product since the Amsterdam stock exchange in 1602 has assumed a h
 
 ## Live demo
 
-[link goes here once deployed]
+https://viberisk-agent.vercel.app
 
 ## Running locally
 
