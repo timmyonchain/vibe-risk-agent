@@ -33,8 +33,12 @@ const clipReveal: Variants = {
   }),
 };
 
+function scrollToId(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+}
+
 function scrollToDashboard() {
-  document.getElementById("dashboard")?.scrollIntoView({ behavior: "smooth" });
+  scrollToId("dashboard");
 }
 
 // ── Decorative animated background: a slow glowing pulse-sweep line. ──
@@ -94,7 +98,10 @@ function LogoMark() {
   );
 }
 
-const NAV_LINKS = ["HOW IT WORKS", "LIVE AGENT"];
+const NAV_LINKS: { label: string; target: string }[] = [
+  { label: "HOW IT WORKS", target: "how-it-works" },
+  { label: "LIVE AGENT", target: "dashboard" },
+];
 
 export default function Hero() {
   const [price, setPrice] = useState<number | null>(null);
@@ -127,10 +134,11 @@ export default function Hero() {
     };
   }, [menuOpen]);
 
-  const goToDashboard = () => {
+  const goTo = (id: string) => {
     setMenuOpen(false);
-    scrollToDashboard();
+    scrollToId(id);
   };
+  const goToDashboard = () => goTo("dashboard");
 
   const priceText =
     price === null
@@ -190,15 +198,15 @@ export default function Hero() {
         <div className="hidden items-center gap-10 md:flex">
           {NAV_LINKS.map((link, i) => (
             <motion.button
-              key={link}
+              key={link.label}
               custom={i + 1}
               variants={fadeDown}
               initial="hidden"
               animate="show"
-              onClick={scrollToDashboard}
+              onClick={() => scrollToId(link.target)}
               className="text-sm font-semibold uppercase tracking-widest text-charcoal-green transition-opacity hover:opacity-60"
             >
-              {link}
+              {link.label}
             </motion.button>
           ))}
         </div>
@@ -314,60 +322,78 @@ export default function Hero() {
         </div>
       </div>
 
-      {/* ── MOBILE MENU OVERLAY ── */}
+      {/* ── MOBILE MENU — slide-in drawer from the right ── */}
       <AnimatePresence>
         {menuOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3, ease: EASE }}
-            className="fixed inset-0 z-50 flex flex-col bg-cream px-5 pb-8 pt-5 sm:px-8"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <LogoMark />
-                <span className="text-sm font-semibold uppercase tracking-widest text-charcoal-green">
-                  VIBERISK
-                </span>
-              </div>
-              <button
-                onClick={() => setMenuOpen(false)}
-                aria-label="Close menu"
-                className="flex h-9 w-9 items-center justify-center rounded-full"
-                style={{ background: "var(--charcoal-green)" }}
-              >
-                <X className="h-4 w-4 text-white" />
-              </button>
-            </div>
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3, ease: EASE }}
+              onClick={() => setMenuOpen(false)}
+              className="fixed inset-0 z-40 backdrop-blur-sm"
+              style={{ background: "rgba(31, 42, 29, 0.35)" }}
+            />
 
-            <div className="mt-16 flex flex-col gap-8">
-              {NAV_LINKS.map((link, i) => (
-                <motion.button
-                  key={link}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, ease: EASE, delay: 0.1 + i * 0.1 }}
-                  onClick={goToDashboard}
-                  className="text-left text-3xl font-semibold uppercase tracking-widest text-charcoal-green"
-                >
-                  {link}
-                </motion.button>
-              ))}
-            </div>
-
-            <motion.button
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: EASE, delay: 0.3 }}
-              onClick={goToDashboard}
-              className="mt-auto inline-flex items-center gap-1 text-2xl font-semibold"
-              style={{ color: "var(--vibe-cyan)" }}
+            {/* Drawer */}
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ duration: 0.45, ease: EASE }}
+              className="fixed right-0 top-0 z-50 flex h-full w-[85%] max-w-sm flex-col bg-cream px-6 pb-8 pt-5"
             >
-              LAUNCH AGENT
-              <ArrowUpRight className="h-7 w-7" />
-            </motion.button>
-          </motion.div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <LogoMark />
+                  <span className="text-sm font-semibold uppercase tracking-widest text-charcoal-green">
+                    VIBERISK
+                  </span>
+                </div>
+                <button
+                  onClick={() => setMenuOpen(false)}
+                  aria-label="Close menu"
+                  className="flex h-9 w-9 items-center justify-center rounded-full"
+                  style={{ background: "var(--charcoal-green)" }}
+                >
+                  <X className="h-4 w-4 text-white" />
+                </button>
+              </div>
+
+              <div className="mt-12 flex flex-col gap-7">
+                {NAV_LINKS.map((link, i) => (
+                  <motion.button
+                    key={link.label}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.5,
+                      ease: EASE,
+                      delay: 0.15 + i * 0.1,
+                    }}
+                    onClick={() => goTo(link.target)}
+                    className="text-left text-2xl font-semibold uppercase tracking-widest text-charcoal-green"
+                  >
+                    {link.label}
+                  </motion.button>
+                ))}
+              </div>
+
+              <motion.button
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: EASE, delay: 0.35 }}
+                onClick={goToDashboard}
+                className="mt-auto inline-flex items-center gap-1 text-2xl font-semibold"
+                style={{ color: "var(--vibe-cyan)" }}
+              >
+                LAUNCH AGENT
+                <ArrowUpRight className="h-7 w-7" />
+              </motion.button>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </section>
