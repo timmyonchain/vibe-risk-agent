@@ -114,3 +114,66 @@ export function calculateSMA(closes: number[], period: number): number | null {
   const sum = recent.reduce((acc, n) => acc + n, 0);
   return sum / period;
 }
+
+// ─────────────────────────────────────────────────────────────
+// getPerception — the full market snapshot used by the API routes
+// and the decision engine. Combines the ticker + computed indicators
+// into one clean object so callers never duplicate this logic.
+// ─────────────────────────────────────────────────────────────
+
+export type FundingSentiment = "crowded long" | "crowded short" | "neutral";
+export type Trend = "bullish" | "bearish" | "unknown";
+
+export interface Perception {
+  symbol: string;
+  price: number;
+  change24h: number;
+  fundingRate: number;
+  fundingSentiment: FundingSentiment;
+  rsi: number | null;
+  sma20: number | null;
+  sma50: number | null;
+  trend: Trend;
+  timestamp: string;
+}
+
+const round = (n: number | null, dp = 2): number | null =>
+  n === null ? null : Math.round(n * 10 ** dp) / 10 ** dp;
+
+export async function getPerception(): Promise<Perception> {
+  // Fetch ticker + candles in parallel for speed.
+  const [ticker, closes] = await Promise.all([getTicker(), getCandles()]);
+
+  const rsi = calculateRSI(closes, 14);
+  const sma20 = calculateSMA(closes, 20);
+  const sma50 = calculateSMA(closes, 50);
+
+  // Trend: which moving average is on top?
+  const trend: Trend =
+    sma20 !== null && sma50 !== null
+      ? sma20 > sma50
+        ? "bullish"
+        : "bearish"
+      : "unknown";
+
+  // Funding sentiment tuned to real-world magnitudes (0.0005 = 0.05%).
+  const fundingSentiment: FundingSentiment =
+    ticker.fundingRate > 0.0005
+      ? "crowded long"
+      : ticker.fundingRate < -0.0005
+        ? "crowded short"
+        : "neutral";
+
+  return {
+    symbol: "BTCUSDT",
+    price: ticker.lastPr,
+    change24h: ticker.change24h,
+    fundingRate: ticker.fundingRate,
+    fundingSentiment,
+    rsi: round(rsi),
+    sma20: round(sma20),
+    sma50: round(sma50),
+    trend,
+    timestamp: new Date().toISOString(),
+  };
+}
