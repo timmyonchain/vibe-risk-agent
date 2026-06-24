@@ -1,26 +1,153 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand palette */
+  --cream: #f4efe6;
+  --charcoal-green: #1f2a1d;
+  --vibe-cyan: #1fc7c2;
+  --dash-bg: #0e1613;
+  --card-bg: #16201c;
+  --card-border: #233029;
+  --pnl-negative: #e2574c;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  /* Expose brand tokens to Tailwind utilities (e.g. text-cyan-vibe) */
+  --color-cream: var(--cream);
+  --color-charcoal-green: var(--charcoal-green);
+  --color-vibe-cyan: var(--vibe-cyan);
+  --color-dash-bg: var(--dash-bg);
+  --color-card-bg: var(--card-bg);
+  --color-card-border: var(--card-border);
+  --color-pnl-negative: var(--pnl-negative);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+  background: var(--dash-bg);
+  color: var(--cream);
+}
+
+/* ── Hero breathing gradient ──────────────────────────────────
+   Two slow-moving radial "blobs" in muted green/cyan, low opacity,
+   on an 11s ease loop. Pure CSS, no canvas/video. */
+.hero-gradient {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.hero-gradient::before,
+.hero-gradient::after {
+  content: "";
+  position: absolute;
+  width: 60vw;
+  height: 60vw;
+  max-width: 720px;
+  max-height: 720px;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.35;
+  will-change: transform, opacity;
+}
+
+.hero-gradient::before {
+  top: -10%;
+  left: -5%;
+  background: radial-gradient(
+    circle at center,
+    rgba(31, 199, 194, 0.45),
+    transparent 65%
+  );
+  animation: breathe-a 11s ease-in-out infinite;
+}
+
+.hero-gradient::after {
+  bottom: -15%;
+  right: -8%;
+  background: radial-gradient(
+    circle at center,
+    rgba(31, 42, 29, 0.55),
+    transparent 65%
+  );
+  animation: breathe-b 13s ease-in-out infinite;
+}
+
+@keyframes breathe-a {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translate(6%, 8%) scale(1.15);
+    opacity: 0.45;
+  }
+}
+
+@keyframes breathe-b {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1.1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translate(-7%, -6%) scale(1);
+    opacity: 0.25;
+  }
+}
+
+/* ── Pulsing "online" dot ─────────────────────────────────── */
+.pulse-dot {
+  position: relative;
+}
+
+.pulse-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--vibe-cyan);
+  animation: pulse-ring 1.8s ease-out infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+/* Respect reduced-motion preferences. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-gradient::before,
+  .hero-gradient::after,
+  .pulse-dot::after {
+    animation: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Slim scrollbar for the reasoning feed. */
+.feed-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.feed-scroll::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 999px;
+}
+.feed-scroll::-webkit-scrollbar-track {
+  background: transparent;
 }

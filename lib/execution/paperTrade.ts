@@ -181,6 +181,20 @@ export async function closeTrade(
   return data as PaperTrade;
 }
 
+/** getRecentTrades — the most recent trades, newest first (for the feed). */
+export async function getRecentTrades(limit = 20): Promise<PaperTrade[]> {
+  const { data, error } = await getClient()
+    .from("paper_trades")
+    .select("*")
+    .order("timestamp", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(`Failed to load recent trades: ${error.message}`);
+  }
+  return (data ?? []) as PaperTrade[];
+}
+
 /** updateAccountBalance — set the virtual balance (id = 1) to a new value. */
 export async function updateAccountBalance(newBalance: number): Promise<PaperAccount> {
   const { data, error } = await getClient()
