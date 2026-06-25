@@ -1,0 +1,18 @@
+[
+  {
+    "timestamp": "2026-06-24T20:15:49.164864+00:00",
+    "symbol": "BTCUSDT",
+    "direction": "short",
+    "price": 60612.4,
+    "quantity": 0.03300007704283835,
+    "balance_change": -1.7721041372003232
+  },
+  {
+    "timestamp": "2026-06-24T23:02:13.91063+00:00",
+    "symbol": "BTCUSDT",
+    "direction": "short",
+    "price": 60826.2,
+    "quantity": 0.01315130288542697,
+    "balance_change": 0
+  }
+]
