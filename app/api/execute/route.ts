@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getPerception } from "@/lib/perception/market";
 import { decideTrade } from "@/lib/decision/decide";
 import { executeTrade } from "@/lib/execution/paperTrade";
+import { getSessionId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -45,11 +46,20 @@ export async function POST(req: Request) {
     );
   }
 
-  // 3. Perception -> decision -> paper execution.
+  // 3. Identify the visitor's session (set by proxy.ts).
+  const sessionId = await getSessionId();
+  if (!sessionId) {
+    return NextResponse.json(
+      { error: "No session cookie found. Enable cookies and reload." },
+      { status: 400 },
+    );
+  }
+
+  // 4. Perception -> decision -> paper execution.
   try {
     const perception = await getPerception();
     const decision = await decideTrade(perception, riskProfile);
-    const trade = await executeTrade(decision, perception);
+    const trade = await executeTrade(decision, perception, sessionId);
     return NextResponse.json({ perception, decision, trade });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

@@ -54,25 +54,59 @@ export interface PaperTrade {
   pnl: number | null;
 }
 
-/** Fetch the single virtual balance row (id = 1). */
-export async function getAccount(): Promise<PaperAccount> {
-  const { data, error } = await getClient()
+/**
+ * Fetch this session's virtual balance row, creating it lazily (starting
+ * balance 10000) the first time the session is seen. Each session_id gets
+ * its own account.
+ */
+export async function getAccount(sessionId: string): Promise<PaperAccount> {
+  const client = getClient();
+
+  // Already have an account for this session?
+  const { data: existing, error: selError } = await client
     .from("paper_account")
     .select("*")
-    .eq("id", 1)
+    .eq("session_id", sessionId)
+    .maybeSingle();
+
+  if (selError) {
+    throw new Error(`Failed to load paper_account: ${selError.message}`);
+  }
+  if (existing) {
+    return existing as PaperAccount;
+  }
+
+  // First time seeing this session — create its account row.
+  const { data: created, error: insError } = await client
+    .from("paper_account")
+    .insert({ session_id: sessionId, balance: 10000, starting_balance: 10000 })
+    .select()
     .single();
 
-  if (error) {
-    throw new Error(`Failed to load paper_account: ${error.message}`);
+  if (insError) {
+    // Likely a race: a concurrent request created the row first. Re-fetch.
+    const { data: retry, error: retryError } = await client
+      .from("paper_account")
+      .select("*")
+      .eq("session_id", sessionId)
+      .single();
+    if (retryError) {
+      throw new Error(`Failed to create paper_account: ${insError.message}`);
+    }
+    return retry as PaperAccount;
   }
-  return data as PaperAccount;
+  return created as PaperAccount;
 }
 
-/** Fetch the currently open position, or null if none. Only one is allowed. */
-export async function getOpenPosition(): Promise<PaperTrade | null> {
+/**
+ * Fetch this session's currently open position, or null if none.
+ * Only one open position per session is allowed.
+ */
+export async function getOpenPosition(sessionId: string): Promise<PaperTrade | null> {
   const { data, error } = await getClient()
     .from("paper_trades")
     .select("*")
+    .eq("session_id", sessionId)
     .eq("status", "open")
     .order("timestamp", { ascending: false })
     .limit(1);
@@ -96,12 +130,13 @@ export type ExecuteResult = { skipped: true; reason: string } | PaperTrade;
 export async function executeTrade(
   decision: TradeDecision,
   perception: Perception,
+  sessionId: string,
 ): Promise<ExecuteResult> {
   if (decision.action === "hold") {
     return { skipped: true, reason: "Decision was 'hold' — no position opened." };
   }
 
-  const open = await getOpenPosition();
+  const open = await getOpenPosition(sessionId);
   if (open) {
     return {
       skipped: true,
@@ -113,7 +148,7 @@ export async function executeTrade(
     return { skipped: true, reason: "Position size is 0% — nothing to allocate." };
   }
 
-  const account = await getAccount();
+  const account = await getAccount(sessionId);
   const balanceBefore = Number(account.balance);
 
   // Allocate a slice of the balance and convert to base-asset quantity.
@@ -126,6 +161,7 @@ export async function executeTrade(
   const { data, error } = await getClient()
     .from("paper_trades")
     .insert({
+      session_id: sessionId,
       symbol: perception.symbol,
       direction,
       price: perception.price,
@@ -181,11 +217,12 @@ export async function closeTrade(
   return data as PaperTrade;
 }
 
-/** getRecentTrades — the most recent trades, newest first (for the feed). */
-export async function getRecentTrades(limit = 20): Promise<PaperTrade[]> {
+/** getRecentTrades — this session's most recent trades, newest first (for the feed). */
+export async function getRecentTrades(sessionId: string, limit = 20): Promise<PaperTrade[]> {
   const { data, error } = await getClient()
     .from("paper_trades")
     .select("*")
+    .eq("session_id", sessionId)
     .order("timestamp", { ascending: false })
     .limit(limit);
 
@@ -195,12 +232,15 @@ export async function getRecentTrades(limit = 20): Promise<PaperTrade[]> {
   return (data ?? []) as PaperTrade[];
 }
 
-/** updateAccountBalance — set the virtual balance (id = 1) to a new value. */
-export async function updateAccountBalance(newBalance: number): Promise<PaperAccount> {
+/** updateAccountBalance — set this session's virtual balance to a new value. */
+export async function updateAccountBalance(
+  sessionId: string,
+  newBalance: number,
+): Promise<PaperAccount> {
   const { data, error } = await getClient()
     .from("paper_account")
     .update({ balance: newBalance, updated_at: new Date().toISOString() })
-    .eq("id", 1)
+    .eq("session_id", sessionId)
     .select()
     .single();
 

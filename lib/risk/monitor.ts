@@ -29,9 +29,9 @@ export type RiskCheckResult =
 
 const round = (n: number, dp = 2): number => Math.round(n * 10 ** dp) / 10 ** dp;
 
-export async function checkAndCloseTrade(): Promise<RiskCheckResult> {
-  // 1. Is there anything to monitor?
-  const open = await getOpenPosition();
+export async function checkAndCloseTrade(sessionId: string): Promise<RiskCheckResult> {
+  // 1. Is there anything to monitor for this session?
+  const open = await getOpenPosition(sessionId);
   if (!open) {
     return { closed: false, reason: "No open position" };
   }
@@ -69,12 +69,12 @@ export async function checkAndCloseTrade(): Promise<RiskCheckResult> {
     ? quantity * (currentPrice - entryPrice)
     : quantity * (entryPrice - currentPrice);
 
-  const account = await getAccount();
+  const account = await getAccount(sessionId);
   const newBalance = Number(account.balance) + pnl;
 
   // NOTE: two separate writes (not a single DB transaction). Fine for a paper
   // simulator with one position at a time; revisit if concurrency is added.
-  await updateAccountBalance(newBalance);
+  await updateAccountBalance(sessionId, newBalance);
   await closeTrade(open.id, {
     closePrice: currentPrice,
     pnl,

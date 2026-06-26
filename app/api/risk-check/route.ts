@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { checkAndCloseTrade } from "@/lib/risk/monitor";
+import { getSessionId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +16,16 @@ export async function GET() {
     );
   }
 
+  const sessionId = await getSessionId();
+  if (!sessionId) {
+    return NextResponse.json(
+      { error: "No session cookie found. Enable cookies and reload." },
+      { status: 400 },
+    );
+  }
+
   try {
-    const result = await checkAndCloseTrade();
+    const result = await checkAndCloseTrade(sessionId);
     return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

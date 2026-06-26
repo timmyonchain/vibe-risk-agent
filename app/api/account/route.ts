@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAccount, getOpenPosition } from "@/lib/execution/paperTrade";
+import { getSessionId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -14,10 +15,18 @@ export async function GET() {
     );
   }
 
+  const sessionId = await getSessionId();
+  if (!sessionId) {
+    return NextResponse.json(
+      { error: "No session cookie found. Enable cookies and reload." },
+      { status: 400 },
+    );
+  }
+
   try {
     const [account, openPosition] = await Promise.all([
-      getAccount(),
-      getOpenPosition(),
+      getAccount(sessionId),
+      getOpenPosition(sessionId),
     ]);
     return NextResponse.json({
       balance: Number(account.balance),
